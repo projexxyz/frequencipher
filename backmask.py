@@ -1,45 +1,56 @@
-"""
-Real-time backmasking detection via reversed audio analysis.
-"""
-import numpy as np
+"""Real-time backmasking detection via reversed audio analysis."""
+from __future__ import annotations
+
 from typing import Dict
 
+import numpy as np
+from scipy.signal import correlate
 
-def detect_backmasking(y: np.ndarray, sr: int) -> Dict[str, float]:
-    """
-    Detect potential backmasked speech by comparing forward and reversed audio.
+from .statistics import summarise_array
 
-    The algorithm reverses the signal and computes a similarity metric between
-    segments of the original and reversed audio. A high similarity score may
-    indicate intentional embedding of intelligible content when played backwards.
 
-    Parameters
-    ----------
-    y : np.ndarray
-        Input time series
-    sr : int
-        Sampling rate
+def detect_backmasking(samples: np.ndarray, sample_rate: int) -> Dict[str, float]:
+    """Detect potential backmasked speech by comparing forward and reversed audio."""
 
-    Returns
-    -------
-    dict
-        A dictionary with a single key ``backmasking_score``. Scores closer to 1
-        indicate stronger correlation between forward and reversed audio, which
-        can be suspicious.
-    """
-    # Reverse the audio
-    reversed_y = y[::-1]
-    # Normalize both signals
-    if np.max(np.abs(y)) > 0:
-        y_norm = y / np.max(np.abs(y))
+    if samples.ndim > 1:
+        samples = np.mean(samples, axis=0)
+
+    reversed_samples = samples[::-1]
+
+    norm = np.linalg.norm(samples) * np.linalg.norm(reversed_samples)
+    if norm == 0:
+        peak_correlation = 0.0
     else:
-        y_norm = y
-    if np.max(np.abs(reversed_y)) > 0:
-        rev_norm = reversed_y / np.max(np.abs(reversed_y))
+        correlation = correlate(samples, reversed_samples, mode="valid")
+        peak_correlation = float(np.max(np.abs(correlation)) / norm)
+
+    frame_size = min(len(samples), sample_rate * 5)
+    if frame_size == 0:
+        energy_symmetry = 0.0
+        summary = summarise_array(np.array([0.0])).to_dict()
     else:
-        rev_norm = reversed_y
-    # Compute correlation coefficient
-    min_len = min(len(y_norm), len(rev_norm))
-    corr = np.correlate(y_norm[:min_len], rev_norm[:min_len], mode='valid')[0]
-    score = float(corr / min_len)
-    return {"backmasking_score": score}
+        frames = len(samples) // frame_size or 1
+        reshaped = samples[: frames * frame_size].reshape(frames, frame_size)
+        reversed_reshaped = reversed_samples[: frames * frame_size].reshape(frames, frame_size)
+        frame_correlations = []
+        for i in range(frames):
+            a = reshaped[i]
+            b = reversed_reshaped[i]
+            if np.std(a) == 0 or np.std(b) == 0:
+                frame_correlations.append(0.0)
+            else:
+                frame_correlations.append(float(np.corrcoef(a, b)[0, 1]))
+        summary = summarise_array(np.array(frame_correlations)).to_dict()
+        energy_symmetry = float(
+            np.mean(
+                np.abs(np.sum(reshaped, axis=1) - np.sum(reversed_reshaped, axis=1))
+            )
+            / frame_size
+        )
+
+    return {
+        "peak_correlation": peak_correlation,
+        "frame_correlation_mean": summary["mean"],
+        "frame_correlation_std": summary["std"],
+        "energy_symmetry": energy_symmetry,
+    }
