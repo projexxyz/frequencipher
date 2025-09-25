@@ -1,21 +1,18 @@
 # FrequenCipher
 
-FrequenCipher is a high-level audio forensics toolkit designed to uncover covert and harmful content hidden within audio recordings. It provides a modular Python package with support for multiple file formats, spectral analysis, phase anomaly detection, backmasking analysis, subliminal frequency extraction, anomaly scoring, steganography and watermark detection, temporal manipulation checks, report generation, and visualization.
+FrequenCipher is an enterprise-grade audio forensics toolkit designed to uncover covert and harmful content hidden within audio recordings. It provides a modular Python package with support for multi-format ingestion, high fidelity spectral analysis, anomaly detection, backmasking inspection, subliminal frequency extraction, steganography and watermark heuristics, temporal manipulation checks, report generation, and a hardened CLI.
 
-**Note:** This is a **skeleton implementation** intended for demonstration purposes. The core logic of each module must be developed and validated by audio forensics experts before use in real investigations.
+## Key capabilities
 
-## Features
-
-- **Multi-format Ingestion:** Reads WAV, MP3, FLAC, OGG via `soundfile`.
-- **Spectral Analysis:** Computes STFT, mel-spectrogram, MFCCs, and chroma features.
-- **Phase Analysis:** Detects irregularities in phase to flag hidden messages.
-- **Backmasking Detection:** Compares forward and reversed audio for hidden speech patterns.
-- **Subliminal Detection:** Calculates energy in infrasonic and ultrasonic bands.
-- **Anomaly Scoring:** Placeholder statistical method for identifying unusual audio sections.
-- **Steganography & Watermark Detection:** Stub functions for detecting LSB manipulation and watermarking.
-- **Temporal Checks:** Evaluates simple pitch stability metrics to detect speed/pitch shifts.
-- **Report Generation:** Generates a PDF summary of analysis results.
-- **CLI:** Run analyses from the command line.
+- **Robust ingestion pipeline:** Validates input files, supports streaming reads, automatic resampling, mono/stereo handling, and DC offset removal.
+- **Rich spectral profiling:** Computes STFT, mel bands, MFCCs, chroma, spectral shape descriptors, and optional wavelet coefficients with statistical summaries for downstream ML models.
+- **Phase anomaly scanning:** Quantifies phase coherence, entropy, and deviation metrics to reveal phase-encoded messages.
+- **Backmasking heuristics:** Evaluates cross-correlation, frame-wise similarity, and energy symmetry between forward and reversed audio.
+- **Subliminal & psychoacoustic metrics:** Measures infrasonic/ultrasonic energy, amplitude/frequency modulation strength, and highlights suspicious energy ratios.
+- **Steganography fingerprinting:** Runs chi-square tests, transition analysis, and bit-plane correlations for simple LSB manipulations.
+- **Temporal integrity checks:** Tracks tempo stability and zero-crossing behaviour to flag speed or pitch tampering.
+- **Watermark detection:** Uses spectral flatness and tonal centroid dispersion to score hidden watermark likelihood.
+- **Enterprise reporting:** Generates structured PDF and JSON artefacts, with logging and automation-friendly CLI options.
 
 ## Installation
 
@@ -26,9 +23,30 @@ pip install -r requirements.txt
 ## Usage
 
 ```bash
-python -m frequencipher.cli path/to/audio.wav --report output.pdf
+python -m frequencipher.cli path/to/audio.wav --report analysis.pdf --json analysis.json
+```
+
+### CLI options
+
+| Option | Description |
+| --- | --- |
+| `--report` | Path to write a PDF report (optional). |
+| `--json` | Path to export raw JSON results (optional). |
+| `--target-sr` | Resample audio to the specified rate before analysis (default `44100`). |
+| `--stereo` | Preserve stereo channels (default downmix to mono). |
+| `--include-raw-spectra` | Include raw spectral matrices in JSON output. |
+| `--log-level` | Configure logging verbosity (default `INFO`). |
+
+## Programmatic usage
+
+```python
+from frequencipher import run_full_analysis
+
+audio, results = run_full_analysis("suspect.wav", target_sr=48000)
+print(audio.to_dict())
+print(results["spectral"]["summaries"]["mfcc"])  # access summary stats
 ```
 
 ## Disclaimer
 
-This project is provided as a starting point. For real forensic applications, you must implement robust algorithms and obtain expert validation. Use responsibly and consult legal counsel regarding admissibility and privacy considerations.
+This project ships with heuristic algorithms designed for triage and investigative support. Always validate results against expert judgement and jurisdiction-specific legal guidance before acting on findings.
